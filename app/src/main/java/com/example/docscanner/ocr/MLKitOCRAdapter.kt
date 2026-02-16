@@ -2,7 +2,8 @@ package com.example.docscanner.ocr
 
 import android.graphics.Bitmap
 import android.graphics.Rect
-import android.util.Log
+import com.example.docscanner.util.AppLog
+import com.example.docscanner.util.LogTag
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.TextRecognizer
@@ -37,7 +38,7 @@ class MLKitOCRAdapter : OCRAdapter {
             recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize ML Kit OCR: ${e.message}")
+            AppLog.e(LogTag.OCR_MLKIT, "Failed to initialize ML Kit OCR: ${e.message}")
             false
         }
     }

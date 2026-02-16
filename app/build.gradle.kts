@@ -96,7 +96,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.8.2")
 
     // Jetpack Compose
-    implementation(platform("androidx.compose:compose-bom:2024.01.00"))
+    implementation(platform("androidx.compose:compose-bom:2024.02.02"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
@@ -110,23 +110,20 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
-    // ============ Scanner Engines ============
-
-    // Google Play Services (必需)
+    // ============ Scanner Engine ============
+    // ML Kit Document Scanner
     implementation("com.google.android.gms:play-services-base:18.4.0")
     implementation("com.google.android.gms:play-services-tasks:18.1.0")
     implementation("com.google.android.gms:play-services-flags:18.0.1")
-
-    // ML Kit Document Scanner (方案A)
     implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1")
 
-    // ML Kit Text Recognition (OCR) - 使用play-services版本
+    // ============ OCR Engines ============
+    // ML Kit Text Recognition
     implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
-    // 中文识别支持
     implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
 
-    // OpenCV (方案B/C)
-    implementation("com.quickbirdstudios:opencv:4.5.3.0")
+    // Tesseract4Android - 开源OCR引擎
+    implementation("cz.adaptech.tesseract4android:tesseract4android:4.1.0")
 
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.5.0")
@@ -138,7 +135,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2024.01.00"))
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.02.02"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 
     debugImplementation("androidx.compose.ui:ui-tooling")

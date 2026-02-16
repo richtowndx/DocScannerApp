@@ -24,6 +24,9 @@ dependencyResolutionManagement {
 
         // JitPack for SmartCropper
         maven { url = uri("https://jitpack.io") }
+
+        // Huawei Maven for HMS ML Kit
+        maven { url = uri("https://developer.huawei.com/repo/") }
     }
 }
 

@@ -30,9 +30,7 @@ data class ProcessOptions(
  * 扫描引擎类型
  */
 enum class ScannerEngine {
-    ML_KIT,          // Google ML Kit Document Scanner
-    OPENCV_CUSTOM,   // 自定义OpenCV实现
-    SMART_CROPPER    // SmartCropper库
+    ML_KIT          // Google ML Kit Document Scanner
 }
 
 /**

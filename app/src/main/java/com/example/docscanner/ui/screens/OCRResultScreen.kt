@@ -21,6 +21,8 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.example.docscanner.ocr.*
+import com.example.docscanner.util.AppLog
+import com.example.docscanner.util.LogTag
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -30,6 +32,7 @@ import java.io.InputStream
 @Composable
 fun OCRResultScreen(
     imageUri: String?,
+    ocrEngine: OCREngine,
     resultText: String?,
     onResultReady: (String) -> Unit,
     onBack: () -> Unit,
@@ -43,15 +46,32 @@ fun OCRResultScreen(
     var ocrResult by remember { mutableStateOf<OCRResult?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var showOriginalImage by remember { mutableStateOf(false) }
+    var currentEngine by remember { mutableStateOf(ocrEngine) }
 
-    val ocrAdapter = remember { OCRFactory.getAdapter(OCREngine.ML_KIT) }
+    val ocrAdapter = remember(currentEngine) {
+        AppLog.i(LogTag.UI_OCR_RESULT, "Creating OCR adapter for engine: $currentEngine")
+        OCRFactory.getAdapter(currentEngine, context)
+    }
 
     // 执行OCR识别
-    LaunchedEffect(imageUri) {
+    LaunchedEffect(imageUri, currentEngine) {
         if (imageUri != null) {
             try {
+                isLoading = true
+                error = null
+
+                AppLog.i(LogTag.UI_OCR_RESULT, "Starting OCR with engine: $currentEngine")
+
                 // 初始化OCR引擎
-                ocrAdapter.initialize()
+                val initSuccess = ocrAdapter.initialize()
+                if (!initSuccess) {
+                    AppLog.w(LogTag.UI_OCR_RESULT, "Engine $currentEngine not available, falling back to ML Kit")
+                    // 如果当前引擎不可用，回退到ML Kit
+                    if (currentEngine != OCREngine.ML_KIT) {
+                        currentEngine = OCREngine.ML_KIT
+                        return@LaunchedEffect
+                    }
+                }
 
                 // 加载图片
                 val uri = Uri.parse(imageUri)
@@ -65,17 +85,21 @@ fun OCRResultScreen(
                         ocrAdapter.recognizeText(
                             bitmap,
                             OCRConfig(
-                                engine = OCREngine.ML_KIT,
+                                engine = currentEngine,
                                 enableMarkdown = true
                             )
                         )
                     }
                     ocrResult = result
                     onResultReady(result.markdownText)
+                    AppLog.i(LogTag.UI_OCR_RESULT, "OCR completed: ${result.textBlocks.size} blocks, ${result.processingTimeMs}ms")
+                } else {
+                    error = "无法加载图片"
                 }
                 isLoading = false
             } catch (e: Exception) {
-                error = e.message
+                AppLog.e(LogTag.UI_OCR_RESULT, "OCR failed: ${e.message}", e)
+                error = e.message ?: "识别失败"
                 isLoading = false
             }
         } else {
@@ -94,6 +118,13 @@ fun OCRResultScreen(
                     }
                 },
                 actions = {
+                    // 显示当前使用的引擎
+                    Text(
+                        text = getEngineDisplayName(currentEngine),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
                     IconButton(onClick = { showOriginalImage = !showOriginalImage }) {
                         Icon(
                             if (showOriginalImage) Icons.Default.ImageNotSupported else Icons.Default.Image,
@@ -121,6 +152,11 @@ fun OCRResultScreen(
                     ) {
                         CircularProgressIndicator()
                         Text("正在识别文字...")
+                        Text(
+                            text = "使用引擎: ${getEngineDisplayName(currentEngine)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
@@ -179,7 +215,7 @@ fun OCRResultScreen(
                                     style = MaterialTheme.typography.titleSmall
                                 )
                                 Text(
-                                    text = "耗时: ${ocrResult!!.processingTimeMs}ms",
+                                    text = "引擎: ${getEngineDisplayName(currentEngine)} | 耗时: ${ocrResult!!.processingTimeMs}ms",
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
@@ -236,6 +272,7 @@ fun OCRResultScreen(
                             onClick = {
                                 // 导出文件
                                 // TODO: 实现文件导出功能
+                                Toast.makeText(context, "导出功能开发中", Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.weight(1f)
                         ) {
@@ -264,5 +301,16 @@ fun OCRResultScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun getEngineDisplayName(engine: OCREngine): String {
+    return when (engine) {
+        OCREngine.ML_KIT -> "ML Kit"
+        OCREngine.TESSERACT -> "Tesseract"
+        OCREngine.BAIDU -> "百度OCR"
+        OCREngine.GLM_OCR -> "GLM-OCR"
+        OCREngine.SILICONFLOW -> "SiliconFlow"
     }
 }

@@ -10,7 +10,17 @@ enum class OCREngine {
     ML_KIT,      // Google ML Kit Text Recognition
     TESSERACT,   // Tesseract OCR
     BAIDU,       // 百度OCR API
-    HUAWEI       // 华为HMS ML Kit
+    GLM_OCR,     // 智谱AI GLM-OCR 云端API
+    SILICONFLOW  // SiliconFlow 云端OCR API
+}
+
+/**
+ * SiliconFlow 支持的 OCR 模型
+ */
+enum class SiliconFlowOCRModel(val modelId: String, val displayName: String) {
+    PADDLE_OCR_VL_1_5("PaddlePaddle/PaddleOCR-VL-1.5", "PaddleOCR-VL-1.5"),
+    PADDLE_OCR_VL("PaddlePaddle/PaddleOCR-VL", "PaddleOCR-VL"),
+    DEEPSEEK_OCR("deepseek-ai/DeepSeek-OCR", "DeepSeek-OCR")
 }
 
 /**

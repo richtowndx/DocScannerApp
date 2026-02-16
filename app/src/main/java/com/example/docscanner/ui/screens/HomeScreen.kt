@@ -15,17 +15,30 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.docscanner.scanner.ScannerEngine
 import com.example.docscanner.ui.theme.DocScannerTheme
+import com.example.docscanner.util.AppLog
+import com.example.docscanner.util.LogTag
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    selectedEngine: ScannerEngine,
-    onEngineSelected: (ScannerEngine) -> Unit,
     onStartScan: () -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
+    AppLog.i(LogTag.UI_HOME, "HomeScreen composing")
+
+    // 防止重复点击
+    var isNavigating by remember { mutableStateOf(false) }
+
+    // 自动重置导航状态
+    LaunchedEffect(isNavigating) {
+        if (isNavigating) {
+            delay(2000)
+            isNavigating = false
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -81,17 +94,37 @@ fun HomeScreen(
                 }
             }
 
-            // 引擎选择
-            Text(
-                text = "选择扫描引擎",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium
-            )
-
-            EngineSelector(
-                selectedEngine = selectedEngine,
-                onEngineSelected = onEngineSelected
-            )
+            // 扫描引擎说明
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "扫描引擎: ML Kit",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Google官方API，简单快速",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
 
             // 功能说明
             Text(
@@ -106,14 +139,23 @@ fun HomeScreen(
 
             // 开始扫描按钮
             Button(
-                onClick = onStartScan,
+                onClick = {
+                    if (!isNavigating) {
+                        isNavigating = true
+                        AppLog.i(LogTag.UI_HOME, "开始扫描按钮被点击")
+                        onStartScan()
+                    } else {
+                        AppLog.w(LogTag.UI_HOME, "按钮被忽略，正在处理中...")
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
-                )
+                ),
+                enabled = !isNavigating
             ) {
                 Icon(
                     imageVector = Icons.Default.CameraAlt,
@@ -124,97 +166,6 @@ fun HomeScreen(
                 Text(
                     text = "开始扫描",
                     style = MaterialTheme.typography.titleMedium
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun EngineSelector(
-    selectedEngine: ScannerEngine,
-    onEngineSelected: (ScannerEngine) -> Unit
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        ScannerEngine.values().forEach { engine ->
-            EngineOption(
-                engine = engine,
-                isSelected = selectedEngine == engine,
-                onClick = { onEngineSelected(engine) }
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun EngineOption(
-    engine: ScannerEngine,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val (title, description, icon) = when (engine) {
-        ScannerEngine.ML_KIT -> Triple(
-            "ML Kit 官方方案",
-            "Google官方API，简单快速",
-            Icons.Default.AutoAwesome
-        )
-        ScannerEngine.OPENCV_CUSTOM -> Triple(
-            "OpenCV 自定义",
-            "完全自定义，功能强大",
-            Icons.Default.Build
-        )
-        ScannerEngine.SMART_CROPPER -> Triple(
-            "SmartCropper",
-            "开源库，智能裁剪",
-            Icons.Default.Crop
-        )
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            }
-        ),
-        onClick = onClick
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            RadioButton(
-                selected = isSelected,
-                onClick = onClick
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isSelected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -297,8 +248,6 @@ private fun FeatureCard(
 private fun HomeScreenPreview() {
     DocScannerTheme {
         HomeScreen(
-            selectedEngine = ScannerEngine.ML_KIT,
-            onEngineSelected = {},
             onStartScan = {},
             onNavigateToSettings = {}
         )
@@ -310,8 +259,6 @@ private fun HomeScreenPreview() {
 private fun HomeScreenDarkPreview() {
     DocScannerTheme(darkTheme = true) {
         HomeScreen(
-            selectedEngine = ScannerEngine.ML_KIT,
-            onEngineSelected = {},
             onStartScan = {},
             onNavigateToSettings = {}
         )

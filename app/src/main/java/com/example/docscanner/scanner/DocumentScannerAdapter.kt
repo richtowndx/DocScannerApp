@@ -63,8 +63,6 @@ object ScannerFactory {
         return adapters.getOrPut(engine) {
             when (engine) {
                 ScannerEngine.ML_KIT -> MLKitScannerAdapter()
-                ScannerEngine.OPENCV_CUSTOM -> OpenCVScannerAdapter()
-                ScannerEngine.SMART_CROPPER -> SmartCropperAdapter()
             }
         }
     }
