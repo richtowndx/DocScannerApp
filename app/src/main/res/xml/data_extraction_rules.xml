@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Sample data extraction rules file; for more info see
+   https://developer.android.com/guide/topics/data/backup/backup_rules
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- Uncomment and customize as needed -->
+        <!-- <include domain="sharedpref" path="."/> -->
+    </cloud-backup>
+</data-extraction-rules>
