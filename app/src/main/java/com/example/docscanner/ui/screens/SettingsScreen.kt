@@ -1,21 +1,31 @@
 package com.example.docscanner.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.docscanner.data.config.ConfigRepository
 import com.example.docscanner.ocr.BaiduOCRAdapter
 import com.example.docscanner.ocr.GLMOCRAdapter
 import com.example.docscanner.ocr.OCREngine
 import com.example.docscanner.ocr.SiliconFlowOCRAdapter
 import com.example.docscanner.ocr.SiliconFlowOCRModel
+import com.example.docscanner.util.AppLog
+import com.example.docscanner.util.LogTag
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,6 +34,10 @@ fun SettingsScreen(
     onOCREngineSelected: (OCREngine) -> Unit,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val configRepository = remember { ConfigRepository.getInstance(context) }
+
     // 百度OCR配置对话框
     var showBaiduConfigDialog by remember { mutableStateOf(false) }
     var baiduApiKey by remember { mutableStateOf(BaiduOCRAdapter.apiKey ?: "") }
@@ -38,12 +52,68 @@ fun SettingsScreen(
     var siliconFlowApiKey by remember { mutableStateOf(SiliconFlowOCRAdapter.apiKey ?: "") }
     var siliconFlowModel by remember { mutableStateOf(SiliconFlowOCRAdapter.selectedModel) }
 
+    // 导出目录
+    var exportDirectoryUri by remember { mutableStateOf<String?>(null) }
+    var exportDirectoryName by remember { mutableStateOf<String?>(null) }
+
+    // 导出目录选择器
+    val exportDirLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        uri?.let {
+            AppLog.i(LogTag.FILE_STORAGE, "=== User selected export directory ===")
+            AppLog.i(LogTag.FILE_STORAGE, "Selected URI: $it")
+            AppLog.i(LogTag.FILE_STORAGE, "URI path: ${it.path}")
+            AppLog.i(LogTag.FILE_STORAGE, "URI lastPathSegment: ${it.lastPathSegment}")
+
+            exportDirectoryUri = it.toString()
+            // 获取目录名称用于显示
+            val flags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            context.contentResolver.takePersistableUriPermission(it, flags)
+
+            // 从 URI 中提取目录名称
+            exportDirectoryName = it.lastPathSegment?.split("/")?.last() ?: it.path
+            AppLog.i(LogTag.FILE_STORAGE, "Display name: $exportDirectoryName")
+
+            scope.launch {
+                configRepository.setExportDirectoryUri(it.toString())
+                AppLog.i(LogTag.FILE_STORAGE, "Saved to config: ${it.toString()}")
+            }
+        }
+    }
+
+    // 加载保存的配置
+    LaunchedEffect(Unit) {
+        // 加载百度配置
+        configRepository.getBaiduApiKey()?.let { baiduApiKey = it }
+        configRepository.getBaiduSecretKey()?.let { baiduSecretKey = it }
+
+        // 加载 GLM 配置
+        configRepository.getGLMApiKey()?.let { glmApiKey = it }
+
+        // 加载 SiliconFlow 配置
+        configRepository.getSiliconFlowApiKey()?.let { siliconFlowApiKey = it }
+        siliconFlowModel = configRepository.getSiliconFlowModel()
+
+        // 加载导出目录配置
+        configRepository.getExportDirectoryUri()?.let { savedUri ->
+            exportDirectoryUri = savedUri
+            exportDirectoryName = try {
+                Uri.parse(savedUri).lastPathSegment?.split("/")?.last() ?: savedUri
+            } catch (e: Exception) {
+                savedUri
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("设置") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
+                        @Suppress("DEPRECATION")
                         Icon(Icons.Default.ArrowBack, contentDescription = "返回")
                     }
                 },
@@ -92,6 +162,53 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
+            // 导出设置
+            SettingsSection(title = "导出设置") {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { exportDirLauncher.launch(null) }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Folder,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "导出目录",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = exportDirectoryName ?: "点击选择导出目录（PDF和文本共用）",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (exportDirectoryName != null)
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                else
+                                    MaterialTheme.colorScheme.outline,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+
+                // 说明
+                Text(
+                    text = "PDF 和 文本将导出到此目录，只需配置一次",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            HorizontalDivider()
+
             // 关于信息
             SettingsSection(title = "关于") {
                 Card {
@@ -113,31 +230,23 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    }
-                }
 
-                // OCR引擎说明
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+                        // OCR引擎说明
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 Icons.Default.Info,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onTertiaryContainer
+                                tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "OCR引擎说明",
                                 style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                         Spacer(modifier = Modifier.height(8.dp))
@@ -148,7 +257,7 @@ fun SettingsScreen(
                                     "• GLM-OCR: 智谱AI云端高精度OCR，支持版面分析\n" +
                                     "• SiliconFlow: 云端多模型OCR，支持PaddleOCR-VL",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -165,8 +274,13 @@ fun SettingsScreen(
             onSecretKeyChange = { baiduSecretKey = it },
             onDismiss = { showBaiduConfigDialog = false },
             onConfirm = {
+                // 保存到适配器（内存）
                 val adapter = BaiduOCRAdapter()
                 adapter.configure(baiduApiKey, baiduSecretKey)
+                // 持久化保存到数据库
+                scope.launch {
+                    configRepository.setBaiduConfig(baiduApiKey, baiduSecretKey)
+                }
                 showBaiduConfigDialog = false
             }
         )
@@ -179,8 +293,13 @@ fun SettingsScreen(
             onApiKeyChange = { glmApiKey = it },
             onDismiss = { showGLMConfigDialog = false },
             onConfirm = {
+                // 保存到适配器（内存）
                 val adapter = GLMOCRAdapter()
                 adapter.configure(glmApiKey)
+                // 持久化保存到数据库
+                scope.launch {
+                    configRepository.setGLMApiKey(glmApiKey)
+                }
                 showGLMConfigDialog = false
             }
         )
@@ -195,8 +314,13 @@ fun SettingsScreen(
             onModelChange = { siliconFlowModel = it },
             onDismiss = { showSiliconFlowConfigDialog = false },
             onConfirm = {
+                // 保存到适配器（内存）
                 val adapter = SiliconFlowOCRAdapter()
                 adapter.configure(siliconFlowApiKey, siliconFlowModel)
+                // 持久化保存到数据库
+                scope.launch {
+                    configRepository.setSiliconFlowConfig(siliconFlowApiKey, siliconFlowModel)
+                }
                 showSiliconFlowConfigDialog = false
             }
         )

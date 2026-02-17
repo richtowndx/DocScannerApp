@@ -24,7 +24,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun HomeScreen(
     onStartScan: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToScanProject: () -> Unit = {}
 ) {
     AppLog.i(LogTag.UI_HOME, "HomeScreen composing")
 
@@ -165,6 +166,33 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "开始扫描",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            // 制作扫描件按钮
+            OutlinedButton(
+                onClick = {
+                    if (!isNavigating) {
+                        isNavigating = true
+                        AppLog.i(LogTag.UI_HOME, "制作扫描件按钮被点击")
+                        onNavigateToScanProject()
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                enabled = !isNavigating
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Folder,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "制作扫描件",
                     style = MaterialTheme.typography.titleMedium
                 )
             }

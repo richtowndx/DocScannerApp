@@ -65,7 +65,8 @@ class MainActivity : ComponentActivity() {
                     DocScannerApp(
                         navController = navController,
                         permissionsGranted = permissionsGranted,
-                        onRequestPermissions = { requestPermissions() }
+                        onRequestPermissions = { requestPermissions() },
+                        application = application
                     )
                 }
             }

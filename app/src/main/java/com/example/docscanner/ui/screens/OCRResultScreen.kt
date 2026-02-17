@@ -33,13 +33,12 @@ import java.io.InputStream
 fun OCRResultScreen(
     imageUri: String?,
     ocrEngine: OCREngine,
-    resultText: String?,
+    @Suppress("UNUSED_PARAMETER") resultText: String?,
     onResultReady: (String) -> Unit,
     onBack: () -> Unit,
     onNewScan: () -> Unit
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
 
     var isLoading by remember { mutableStateOf(true) }
@@ -114,6 +113,7 @@ fun OCRResultScreen(
                 title = { Text("OCR识别结果") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
+                        @Suppress("DEPRECATION")
                         Icon(Icons.Default.ArrowBack, contentDescription = "返回")
                     }
                 },

@@ -199,10 +199,12 @@ fun PreviewScreen(
         val scaleY = containerSize.height.toFloat() / displayBitmap!!.height
         val scale = minOf(scaleX, scaleY)
 
-        // 计算图片在容器中的偏移
+        // 计算图片在容器中的偏移（保留用于未来使用）
         val scaledWidth = displayBitmap!!.width * scale
         val scaledHeight = displayBitmap!!.height * scale
+        @Suppress("UNUSED_VARIABLE")
         val offsetX = (containerSize.width - scaledWidth) / 2f
+        @Suppress("UNUSED_VARIABLE")
         val offsetY = (containerSize.height - scaledHeight) / 2f
 
         // 创建带边框的位图
@@ -248,6 +250,7 @@ fun PreviewScreen(
                 title = { Text("预览 - ${engine.name}") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
+                        @Suppress("DEPRECATION")
                         Icon(Icons.Default.ArrowBack, contentDescription = "返回")
                     }
                 },

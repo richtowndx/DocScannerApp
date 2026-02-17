@@ -4,6 +4,7 @@ import java.io.FileInputStream
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.devtools.ksp")
 }
 
 // 加载签名配置
@@ -130,6 +131,12 @@ dependencies {
 
     // Permission
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
+
+    // Room Database
+    val roomVersion = "2.6.1"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

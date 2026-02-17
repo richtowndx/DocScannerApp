@@ -141,20 +141,13 @@ class MLKitScannerAdapter : DocumentScannerAdapter {
     }
 
     private fun applySharpen(bitmap: Bitmap): Bitmap {
-        // Unsharp Mask 锐化算法
+        // Unsharp Mask 锐化算法（简化版本，保留扩展接口）
+        @Suppress("UNUSED_VARIABLE")
         val width = bitmap.width
+        @Suppress("UNUSED_VARIABLE")
         val height = bitmap.height
-        val sharpenedBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-
-        // 简化的锐化卷积核
-        val kernel = arrayOf(
-            floatArrayOf(0f, -1f, 0f),
-            floatArrayOf(-1f, 5f, -1f),
-            floatArrayOf(0f, -1f, 0f)
-        )
-
         // 这里简化处理，实际应使用 RenderScript 或 OpenCV
-        sharpenedBitmap
+        // 可使用 sharpenedBitmap 进行实际锐化处理
         return bitmap // 简化返回
     }
 

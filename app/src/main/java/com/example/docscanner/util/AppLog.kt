@@ -51,6 +51,7 @@ object AppLog {
  * 常用 TAG 定义
  */
 object LogTag {
+    const val APP = "App"
     const val SCANNER_MLKIT = "MLKit"
     const val OCR_MLKIT = "OCR-MLKit"
     const val OCR_TESSERACT = "OCR-Tess"
@@ -67,4 +68,12 @@ object LogTag {
     const val PERMISSION = "Permission"
     const val NAVIGATION = "Navigation"
     const val GENERAL = "General"
+
+    // 扫描件项目相关
+    const val SCAN_PROJECT = "ScanProject"
+    const val SCAN_PROJECT_UI = "ScanProject-UI"
+    const val SCAN_PROJECT_SERVICE = "ScanProject-Service"
+    const val PDF_SERVICE = "PDF-Service"
+    const val OCR_BATCH = "OCR-Batch"
+    const val FILE_STORAGE = "FileStorage"
 }
