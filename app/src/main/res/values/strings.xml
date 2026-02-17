@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DocScanner</string>
+    <string name="scanner">扫描</string>
+    <string name="documents">文档</string>
+    <string name="settings">设置</string>
+    <string name="scan_document">扫描文档</string>
+    <string name="capture">拍摄</string>
+    <string name="ocr_result">OCR 结果</string>
+    <string name="no_text_found">未找到文字</string>
+    <string name="processing">处理中...</string>
+    <string name="select_ocr_engine">选择 OCR 引擎</string>
+    <string name="ml_kit">ML Kit (默认)</string>
+    <string name="tesseract">Tesseract</string>
+    <string name="permission_required">需要相机权限</string>
+    <string name="grant_permission">授予权限</string>
+    <string name="copy_text">复制文本</string>
+    <string name="save_document">保存文档</string>
+    <string name="document_saved">文档已保存</string>
+    <string name="error_occurred">发生错误</string>
+</resources>
