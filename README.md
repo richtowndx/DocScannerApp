@@ -1,7 +1,3 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## 项目概述
 
 DocScannerApp 是一个 Android 文档扫描应用，支持多引擎文档扫描和 OCR 文字识别。使用 Kotlin + Jetpack Compose 构建。
