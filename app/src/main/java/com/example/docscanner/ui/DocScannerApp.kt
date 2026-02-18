@@ -187,6 +187,7 @@ fun DocScannerApp(
             val images by scanProjectViewModel.getProjectImages(projectName).collectAsState(initial = emptyList())
             val exportProgress by scanProjectViewModel.exportProgress.collectAsState()
             val exportResult by scanProjectViewModel.exportResult.collectAsState()
+            val message by scanProjectViewModel.message.collectAsState()
 
             ScanProjectDetailScreen(
                 projectName = projectName,
@@ -195,6 +196,7 @@ fun DocScannerApp(
                 scanner = scanProjectViewModel.scanner,
                 exportProgress = exportProgress,
                 exportResult = exportResult,
+                message = message,
                 onAddImages = { uris ->
                     scanProjectViewModel.addImagesToProject(projectName, uris)
                 },
@@ -212,6 +214,12 @@ fun DocScannerApp(
                 onClearExportProgress = {
                     scanProjectViewModel.clearExportProgress()
                     scanProjectViewModel.clearExportResult()
+                },
+                onClearMessage = {
+                    scanProjectViewModel.clearMessage()
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route)
                 },
                 onBack = {
                     navController.popBackStack()

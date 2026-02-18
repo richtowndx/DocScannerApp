@@ -7,9 +7,13 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -20,10 +24,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -45,16 +54,27 @@ fun ScanProjectDetailScreen(
     scanner: GmsDocumentScanner?,
     exportProgress: ExportProgressInfo?,
     @Suppress("UNUSED_PARAMETER") exportResult: String?,
+    message: String?,  // 添加消息状态
     onAddImages: (List<Uri>) -> Unit,  // 改为批量添加
     onExportPdf: (Uri) -> Unit,
     onExportTextWithAutoOcr: (Uri) -> Unit,
     onDeleteImage: (ScanImageEntity) -> Unit,
     onClearExportProgress: () -> Unit,
+    onClearMessage: () -> Unit,  // 添加清除消息回调
+    onNavigateToSettings: () -> Unit,  // 添加导航到设置的回调
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
     val scope = rememberCoroutineScope()
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp.dp
+
+    // 计算每行显示4张图片时，每张图片的大小（减去padding和间距）
+    val horizontalPadding = 32.dp  // 左右各16dp
+    val spacing = 8.dp  // 图片间距
+    val columns = 4
+    val imageSize = (screenWidthDp - horizontalPadding - spacing * (columns - 1)) / columns
 
     AppLog.i(LogTag.SCAN_PROJECT_UI, "ScanProjectDetailScreen composing for: $projectName")
 
@@ -82,6 +102,19 @@ fun ScanProjectDetailScreen(
     // 导出结果对话框
     var showExportResultDialog by remember { mutableStateOf(false) }
     var lastExportResult by remember { mutableStateOf<String?>(null) }
+
+    // 配置目录提示对话框
+    var showConfigDirectoryDialog by remember { mutableStateOf(false) }
+
+    // 全屏图片查看器状态
+    var viewingImage by remember { mutableStateOf<ScanImageEntity?>(null) }
+
+    // 监听消息变化，如果是需要配置目录的消息，显示对话框
+    LaunchedEffect(message) {
+        if (message?.contains("配置导出目录") == true) {
+            showConfigDirectoryDialog = true
+        }
+    }
 
     // 监听导出完成
     LaunchedEffect(exportProgress) {
@@ -158,23 +191,27 @@ fun ScanProjectDetailScreen(
                     )
                 }
             } else {
-                LazyRow(
+                // 多行网格显示（4列）
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(columns),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        .weight(1f)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(spacing),
+                    verticalArrangement = Arrangement.spacedBy(spacing),
+                    contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
                     items(images, key = { it.id }) { image ->
                         ImageThumbnail(
                             image = image,
+                            size = imageSize,
+                            onView = { viewingImage = image },
                             onDelete = { onDeleteImage(image) }
                         )
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.weight(1f))
 
             // 操作按钮区
             Column(
@@ -254,6 +291,42 @@ fun ScanProjectDetailScreen(
         }
     }
 
+    // 配置目录提示对话框
+    if (showConfigDirectoryDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showConfigDirectoryDialog = false
+                onClearMessage()
+            },
+            icon = { Icon(Icons.Default.FolderOff, contentDescription = null) },
+            title = { Text("需要配置导出目录") },
+            text = {
+                Text("请先在设置中配置导出目录，然后才能导出文件。")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showConfigDirectoryDialog = false
+                        onClearMessage()
+                        onNavigateToSettings()
+                    }
+                ) {
+                    Text("去设置")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showConfigDirectoryDialog = false
+                        onClearMessage()
+                    }
+                ) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
     // 导出结果对话框
     if (showExportResultDialog && lastExportResult != null) {
         // 使用 ViewModel 返回的 displayPath
@@ -286,6 +359,15 @@ fun ScanProjectDetailScreen(
                     Text("确定")
                 }
             }
+        )
+    }
+
+    // 全屏图片查看器
+    viewingImage?.let { image ->
+        FullScreenImageViewer(
+            imagePath = image.filePath,
+            pageNumber = image.pageNumber,
+            onDismiss = { viewingImage = null }
         )
     }
 }
@@ -435,14 +517,16 @@ private fun StatusCard(
 @Composable
 private fun ImageThumbnail(
     image: ScanImageEntity,
+    size: Dp,
+    onView: () -> Unit,
     onDelete: () -> Unit
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
-            .size(120.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .size(size)
+            .clip(RoundedCornerShape(8.dp))
     ) {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
@@ -494,16 +578,48 @@ private fun ImageThumbnail(
             }
         }
 
-        // 删除按钮
-        IconButton(
-            onClick = { showDeleteConfirm = true },
-            modifier = Modifier.align(Alignment.Center)
+        // 操作按钮层
+        Row(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Icon(
-                Icons.Default.Delete,
-                contentDescription = "删除",
-                tint = MaterialTheme.colorScheme.error
-            )
+            // 查看按钮
+            Surface(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                IconButton(
+                    onClick = onView,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Visibility,
+                        contentDescription = "查看",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // 删除按钮
+            Surface(
+                color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                IconButton(
+                    onClick = { showDeleteConfirm = true },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "删除",
+                        tint = MaterialTheme.colorScheme.onError,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
         }
     }
 
@@ -530,3 +646,147 @@ private fun ImageThumbnail(
         )
     }
 }
+
+/**
+ * 全屏图片查看器，支持缩放
+ */
+@Composable
+private fun FullScreenImageViewer(
+    imagePath: String,
+    pageNumber: Int,
+    onDismiss: () -> Unit
+) {
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    var offsetY by remember { mutableFloatStateOf(0f) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.black)
+    ) {
+        // 图片显示区域
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        val newScale = (scale * zoom).coerceIn(0.5f, 5f)
+
+                        // 只有缩放大于1时才允许移动
+                        if (newScale > 1f) {
+                            // 计算允许的最大偏移量
+                            val maxX = (size.width * (newScale - 1)) / 2
+                            val maxY = (size.height * (newScale - 1)) / 2
+
+                            // 确保最大值大于0，避免 coerceIn 崩溃
+                            if (maxX > 0 && maxY > 0) {
+                                offsetX = (offsetX + pan.x * newScale).coerceIn(-maxX, maxX)
+                                offsetY = (offsetY + pan.y * newScale).coerceIn(-maxY, maxY)
+                            }
+                        } else {
+                            // 缩放小于等于1时，重置偏移
+                            offsetX = 0f
+                            offsetY = 0f
+                        }
+
+                        scale = newScale
+                    }
+                }
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onDoubleTap = {
+                            // 双击切换缩放
+                            if (scale > 1f) {
+                                scale = 1f
+                                offsetX = 0f
+                                offsetY = 0f
+                            } else {
+                                scale = 2f
+                            }
+                        }
+                    )
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(imagePath)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "Page $pageNumber",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer(
+                        scaleX = scale,
+                        scaleY = scale,
+                        translationX = offsetX,
+                        translationY = offsetY
+                    )
+            )
+        }
+
+        // 顶部工具栏
+        Surface(
+            modifier = Modifier.align(Alignment.TopCenter),
+            color = MaterialTheme.colorScheme.black.copy(alpha = 0.6f)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "第 ${String.format("%04d", pageNumber)} 页",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.white,
+                    modifier = Modifier.weight(1f)
+                )
+
+                // 缩放比例
+                Text(
+                    text = "${(scale * 100).toInt()}%",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.white,
+                    modifier = Modifier.padding(end = 16.dp)
+                )
+
+                // 关闭按钮
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "关闭",
+                        tint = MaterialTheme.colorScheme.white
+                    )
+                }
+            }
+        }
+
+        // 底部提示
+        Surface(
+            modifier = Modifier.align(Alignment.BottomCenter),
+            color = MaterialTheme.colorScheme.black.copy(alpha = 0.6f)
+        ) {
+            Text(
+                text = "双指缩放 | 双击切换 | 滑动移动",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.white.copy(alpha = 0.7f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(vertical = 12.dp)
+                    .wrapContentWidth(Alignment.CenterHorizontally)
+            )
+        }
+    }
+}
+
+// 扩展属性：黑色颜色
+private val ColorScheme.black: Color
+    get() = Color.Black
+
+private val ColorScheme.white: Color
+    get() = Color.White
