@@ -234,6 +234,38 @@ class ScanProjectViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     /**
+     * 批量添加图片到项目（高性能版本）
+     *
+     * 优化策略：
+     * - 并行预加载所有图片（利用多核CPU）
+     * - 串行保存文件（保证页码顺序）
+     */
+    fun addImagesToProject(projectName: String, uris: List<Uri>) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            AppLog.i(LogTag.SCAN_PROJECT_UI, "=== Batch adding ${uris.size} images (optimized) ===")
+
+            // 使用优化后的批量添加方法
+            val (successCount, failCount) = scanProjectService.addImagesFromUris(projectName, uris)
+
+            _isLoading.value = false
+
+            AppLog.i(LogTag.SCAN_PROJECT_UI, "=== Batch add complete: $successCount success, $failCount failed ===")
+
+            if (failCount == 0) {
+                _message.value = "已添加 $successCount 张图片"
+            } else {
+                _message.value = "添加完成: $successCount 成功, $failCount 失败"
+            }
+
+            // 更新项目状态为扫描中
+            if (successCount > 0) {
+                repository.updateProjectStatus(projectName, ProjectStatus.SCANNING)
+            }
+        }
+    }
+
+    /**
      * 删除图片
      */
     fun deleteImage(image: ScanImageEntity) {

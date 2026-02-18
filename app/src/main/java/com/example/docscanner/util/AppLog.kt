@@ -1,47 +1,58 @@
 package com.example.docscanner.util
 
 import android.util.Log
+import com.example.docscanner.BuildConfig
 
 /**
  * 统一日志工具类
- * 始终输出日志，便于调试
+ * Debug 版本输出日志，Release 版本不输出
  */
 object AppLog {
     private const val APP_TAG = "DocScanner"
-    private const val ENABLE_LOG = true  // 始终启用日志
+
+    // 使用 BuildConfig.DEBUG 自动判断是否是 debug 版本
+    // Debug 编译时为 true，Release 编译时为 false
+    private val isDebug: Boolean
+        get() = BuildConfig.DEBUG
 
     private fun formatTag(tag: String): String {
         return "$APP_TAG-$tag"
     }
 
     fun d(tag: String, message: String) {
-        if (ENABLE_LOG) {
+        if (isDebug) {
             Log.d(formatTag(tag), message)
         }
     }
 
     fun i(tag: String, message: String) {
-        if (ENABLE_LOG) {
+        if (isDebug) {
             Log.i(formatTag(tag), message)
         }
     }
 
     fun w(tag: String, message: String) {
-        if (ENABLE_LOG) {
+        if (isDebug) {
             Log.w(formatTag(tag), message)
         }
     }
 
     fun e(tag: String, message: String) {
-        Log.e(formatTag(tag), message)
+        // 错误日志在 release 版本也输出（可选，根据需求决定）
+        // 如果完全不输出，改为 if (isDebug)
+        if (isDebug) {
+            Log.e(formatTag(tag), message)
+        }
     }
 
     fun e(tag: String, message: String, throwable: Throwable) {
-        Log.e(formatTag(tag), message, throwable)
+        if (isDebug) {
+            Log.e(formatTag(tag), message, throwable)
+        }
     }
 
     fun v(tag: String, message: String) {
-        if (ENABLE_LOG) {
+        if (isDebug) {
             Log.v(formatTag(tag), message)
         }
     }

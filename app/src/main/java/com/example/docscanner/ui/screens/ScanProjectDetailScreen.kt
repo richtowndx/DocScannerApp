@@ -45,7 +45,7 @@ fun ScanProjectDetailScreen(
     scanner: GmsDocumentScanner?,
     exportProgress: ExportProgressInfo?,
     @Suppress("UNUSED_PARAMETER") exportResult: String?,
-    onAddImage: (Uri) -> Unit,
+    onAddImages: (List<Uri>) -> Unit,  // 改为批量添加
     onExportPdf: (Uri) -> Unit,
     onExportTextWithAutoOcr: (Uri) -> Unit,
     onDeleteImage: (ScanImageEntity) -> Unit,
@@ -64,9 +64,11 @@ fun ScanProjectDetailScreen(
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val scanningResult = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
-            scanningResult?.pages?.forEach { page ->
-                AppLog.i(LogTag.SCAN_PROJECT_UI, "Scanned image: ${page.imageUri}")
-                onAddImage(page.imageUri)
+            // 收集所有图片URI，然后批量添加（保持原始顺序）
+            val uris = scanningResult?.pages?.map { it.imageUri } ?: emptyList()
+            AppLog.i(LogTag.SCAN_PROJECT_UI, "Scanner returned ${uris.size} images")
+            if (uris.isNotEmpty()) {
+                onAddImages(uris)  // 批量添加，保持顺序
             }
         } else {
             AppLog.w(LogTag.SCAN_PROJECT_UI, "Scan cancelled or failed")

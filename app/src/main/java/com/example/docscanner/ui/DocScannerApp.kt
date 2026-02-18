@@ -195,8 +195,8 @@ fun DocScannerApp(
                 scanner = scanProjectViewModel.scanner,
                 exportProgress = exportProgress,
                 exportResult = exportResult,
-                onAddImage = { uri ->
-                    scanProjectViewModel.addImageToProject(projectName, uri)
+                onAddImages = { uris ->
+                    scanProjectViewModel.addImagesToProject(projectName, uris)
                 },
                 onExportPdf = { _ ->
                     // 使用保存的导出目录

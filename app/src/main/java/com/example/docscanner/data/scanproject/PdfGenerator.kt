@@ -39,11 +39,18 @@ class PdfGenerator private constructor(private val context: Context) {
         callback: ProgressCallback? = null
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
-            AppLog.i(LogTag.PDF_SERVICE, "Starting PDF generation for project: $projectName")
+            AppLog.i(LogTag.PDF_SERVICE, "==================== PDF GENERATION START ====================")
+            AppLog.i(LogTag.PDF_SERVICE, "Project name: $projectName")
+            AppLog.i(LogTag.PDF_SERVICE, "Thread: ${Thread.currentThread().name}")
 
             // 获取项目图片（按页码排序）
             val imageFiles = scanProjectService.getProjectImagesSorted(projectName)
-            AppLog.i(LogTag.PDF_SERVICE, "Found ${imageFiles.size} images for project")
+            AppLog.i(LogTag.PDF_SERVICE, "=== getProjectImagesSorted returned ${imageFiles.size} files ===")
+
+            // 打印所有文件信息
+            imageFiles.forEachIndexed { index, file ->
+                AppLog.i(LogTag.PDF_SERVICE, "ImageFile[$index]: ${file.name}, path=${file.absolutePath}, size=${file.length()} bytes")
+            }
 
             if (imageFiles.isEmpty()) {
                 AppLog.e(LogTag.PDF_SERVICE, "No images found for project: $projectName")
@@ -56,25 +63,42 @@ class PdfGenerator private constructor(private val context: Context) {
             // 创建PDF文档
             val pdfDocument = PdfDocument()
             var currentPageIndex = 0
+            var failedCount = 0
+
+            AppLog.i(LogTag.PDF_SERVICE, "=== STARTING PDF PAGE GENERATION ===")
 
             for ((index, imageFile) in imageFiles.withIndex()) {
+                AppLog.i(LogTag.PDF_SERVICE, "--- Processing image ${index + 1}/$totalImages: ${imageFile.name} ---")
+
                 try {
                     // 检查文件是否存在
                     if (!imageFile.exists()) {
-                        AppLog.w(LogTag.PDF_SERVICE, "Image file not found: ${imageFile.absolutePath}")
+                        AppLog.w(LogTag.PDF_SERVICE, "Image file NOT EXISTS: ${imageFile.absolutePath}")
+                        failedCount++
+                        continue
+                    }
+
+                    val fileSize = imageFile.length()
+                    AppLog.i(LogTag.PDF_SERVICE, "File exists, size: $fileSize bytes")
+
+                    if (fileSize == 0L) {
+                        AppLog.w(LogTag.PDF_SERVICE, "File is EMPTY: ${imageFile.absolutePath}")
+                        failedCount++
                         continue
                     }
 
                     callback?.onProgress(index + 1, totalImages, "处理图片 ${index + 1}/$totalImages")
 
                     // 加载图片
+                    AppLog.i(LogTag.PDF_SERVICE, "Decoding bitmap from: ${imageFile.absolutePath}")
                     val bitmap = BitmapFactory.decodeFile(imageFile.absolutePath)
                     if (bitmap == null) {
-                        AppLog.w(LogTag.PDF_SERVICE, "Failed to decode image: ${imageFile.absolutePath}")
+                        AppLog.w(LogTag.PDF_SERVICE, "FAILED to decode bitmap: ${imageFile.absolutePath}")
+                        failedCount++
                         continue
                     }
 
-                    AppLog.d(LogTag.PDF_SERVICE, "Processing image: ${imageFile.name}, size: ${bitmap.width}x${bitmap.height}")
+                    AppLog.i(LogTag.PDF_SERVICE, "Bitmap decoded: ${bitmap.width}x${bitmap.height}, config=${bitmap.config}")
 
                     // 创建PDF页面（使用图片实际尺寸）
                     val pageInfo = PdfDocument.PageInfo.Builder(
@@ -82,6 +106,8 @@ class PdfGenerator private constructor(private val context: Context) {
                         bitmap.height,
                         currentPageIndex + 1
                     ).create()
+
+                    AppLog.i(LogTag.PDF_SERVICE, "Creating PDF page ${currentPageIndex + 1}, size: ${bitmap.width}x${bitmap.height}")
 
                     val page = pdfDocument.startPage(pageInfo)
                     val canvas = page.canvas
@@ -91,18 +117,24 @@ class PdfGenerator private constructor(private val context: Context) {
                     pdfDocument.finishPage(page)
 
                     currentPageIndex++
-                    AppLog.d(LogTag.PDF_SERVICE, "Added page ${currentPageIndex}: ${imageFile.name}")
+                    AppLog.i(LogTag.PDF_SERVICE, "SUCCESS: Added page $currentPageIndex - ${imageFile.name}")
 
                     // 回收bitmap
                     bitmap.recycle()
                 } catch (e: Exception) {
-                    AppLog.e(LogTag.PDF_SERVICE, "Failed to add image to PDF: ${imageFile.name}", e)
+                    failedCount++
+                    AppLog.e(LogTag.PDF_SERVICE, "EXCEPTION adding image to PDF: ${imageFile.name}", e)
                 }
             }
 
+            AppLog.i(LogTag.PDF_SERVICE, "=== PDF PAGE GENERATION COMPLETE ===")
+            AppLog.i(LogTag.PDF_SERVICE, "Total images processed: $totalImages")
+            AppLog.i(LogTag.PDF_SERVICE, "Pages successfully added: $currentPageIndex")
+            AppLog.i(LogTag.PDF_SERVICE, "Failed images: $failedCount")
+
             if (currentPageIndex == 0) {
                 pdfDocument.close()
-                AppLog.e(LogTag.PDF_SERVICE, "No valid images to generate PDF")
+                AppLog.e(LogTag.PDF_SERVICE, "No valid images to generate PDF - all $totalImages images failed")
                 return@withContext Result.failure(IllegalArgumentException("没有有效的图片可以生成PDF"))
             }
 
@@ -117,12 +149,16 @@ class PdfGenerator private constructor(private val context: Context) {
             }
             pdfDocument.close()
 
-            AppLog.i(LogTag.PDF_SERVICE, "PDF generated successfully: ${pdfFile.absolutePath}, size: ${pdfFile.length()} bytes")
+            AppLog.i(LogTag.PDF_SERVICE, "==================== PDF GENERATION SUCCESS ====================")
+            AppLog.i(LogTag.PDF_SERVICE, "Output: ${pdfFile.absolutePath}")
+            AppLog.i(LogTag.PDF_SERVICE, "File size: ${pdfFile.length()} bytes")
+            AppLog.i(LogTag.PDF_SERVICE, "Total pages: $currentPageIndex")
             callback?.onComplete(pdfFile.absolutePath)
 
             Result.success(pdfFile.absolutePath)
         } catch (e: Exception) {
-            AppLog.e(LogTag.PDF_SERVICE, "Failed to generate PDF for project: $projectName", e)
+            AppLog.e(LogTag.PDF_SERVICE, "==================== PDF GENERATION FAILED ====================")
+            AppLog.e(LogTag.PDF_SERVICE, "Project: $projectName", e)
             callback?.onError(e)
             Result.failure(e)
         }
